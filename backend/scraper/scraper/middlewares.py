@@ -102,9 +102,7 @@ class ScraperDownloaderMiddleware:
     def spider_opened(self, spider):
         spider.logger.info("Spider opened: %s" % spider.name)
 
-from urllib.parse import urlencode
-from random import randint
-import requests
+import random
 
 class FakeUserAgentMiddleware:
     
@@ -116,15 +114,15 @@ class FakeUserAgentMiddleware:
         self.fake_user_agent = settings.get('USER_AGENT')
 
     def _get_random_user_agent(self):
-        randint_index = randint(0, len(self.fake_user_agent) -1)
+        randint_index = random.randint(0, len(self.fake_user_agent) - 1)
         return self.fake_user_agent[randint_index]
 
     def process_request(self, request, spider):
-        #if self.fake_user_agents_active:
-            random_user_agent = self._get_random_user_agent()
-            request.headers['User-Agent'] = random_user_agent
-            spider.logger.info(f"Using User-Agent: {random_user_agent}")
+        random_user_agent = self._get_random_user_agent()
+        request.headers['User-Agent'] = random_user_agent
+        spider.logger.info(f"Using User-Agent: {random_user_agent}")
         
+
 import base64
 
 class MyProxyMiddleware(object):
@@ -134,16 +132,24 @@ class MyProxyMiddleware(object):
         return cls(crawler.settings)
 
     def __init__(self, settings):
-        self.user = settings.get('PROXY_USER')
-        self.password = settings.get('PROXY_PASSWORD')
-        self.endpoint = settings.get('PROXY_ENDPOINT')
-        self.port = settings.get('PROXY_PORT')
+        self.proxy = list(zip(
+            settings.get('PROXY_USER'),
+            settings.get('PROXY_PASSWORD'),
+            settings.get('PROXY_ENDPOINT'),
+            settings.get('PROXY_PORT')
+        ))
+    
+    def _get_random_proxy(self):
+        randint_index = random.randint(0, len(self.proxy) - 1)
+        return self.proxy[randint_index]
 
     def process_request(self, request, spider):
-        user_credentials = '{user}:{passw}'.format(user=self.user, passw=self.password)
+        user, password, endpoint, port = self._get_random_proxy()
+        user_credentials = f'{user}:{password}'
         basic_authentication = 'Basic ' + base64.b64encode(user_credentials.encode()).decode()
-        host = 'http://{endpoint}:{port}'.format(endpoint=self.endpoint, port=self.port)
+        host = f'http://{endpoint}:{port}'
         request.meta['proxy'] = host
         request.headers['Proxy-Authorization'] = basic_authentication
         spider.logger.info(f"Using proxy: {host} with credentials {user_credentials}")
 
+    
